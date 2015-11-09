@@ -2,7 +2,7 @@ ReactiveDatatable = function(options) {
 	var self = this;
 
 	this.options = options = _.defaults(options, {
-		// Any of these can be overriden by passing an options 
+		// Any of these can be overriden by passing an options
 		// object into your ReactiveDatatable template (see readme)
 		stateSave: true,
 		stateDuration: -1, // Store data for session only
@@ -15,7 +15,7 @@ ReactiveDatatable = function(options) {
 		stateLoadParams: function(settings, data) {
 			// Make it easy to change to the stored page on .update()
 			self.page = data.start / data.length;
-		}
+		},
 	});
 };
 
@@ -30,3 +30,7 @@ ReactiveDatatable.prototype.update = function(data) {
 		.page(self.page || 0) // XXX: Can we avoid drawing twice?
 		.draw(false);		  // I couldn't get the page drawing to work otherwise
 };
+
+// ReactiveDatatable.prototype.renderAddForm = function() {
+//     var self = this;
+// };

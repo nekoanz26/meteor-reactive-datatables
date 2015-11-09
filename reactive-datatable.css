@@ -9,3 +9,6 @@
 .dataTable th.sorting_desc:after{
     content: '\25bc';
 }
+.btn-add:after{
+    content: '+';
+}

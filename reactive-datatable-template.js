@@ -11,7 +11,7 @@ Template.ReactiveDatatable.rendered = function() {
     // wrapping table in existing element (#datatable_wrap) defined in the template.
     var table = document.createElement('table');
     table.className = 'table dataTable';
-    
+
     // Render the table element and turn it into a DataTable
     this.$('.datatable_wrapper').append(table);
     var dt = $(table).DataTable(data.options);
@@ -22,7 +22,17 @@ Template.ReactiveDatatable.rendered = function() {
         reactiveDataTable.page = info.page;
     });
 
-    this.autorun(function() {
-        reactiveDataTable.update(data.tableData());
-    });
+    // Create `Add` button
+//     var btn_add = document.createElement('button');
+//     btn_add.className = 'btn-add';
+
+// //     btn_add.addEventListener('click', function(e){
+// //         reactiveDataTable.renderAddForm();
+// //     });
+
+//     this.$('.datatable-controls').append(btn_add);
+
+//     dt.on('order.dt', function(e, settings) {
+
+//     });
 };
