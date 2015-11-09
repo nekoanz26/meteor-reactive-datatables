@@ -1,0 +1,11 @@
+/* CSS declarations go here */
+.dataTable th:after{
+    font-size: 12px;
+    float: right;
+}
+.dataTable th.sorting_asc:after{
+    content: '\25b2';
+}
+.dataTable th.sorting_desc:after{
+    content: '\25bc';
+}
