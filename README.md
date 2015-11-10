@@ -5,7 +5,7 @@ Provides a [meteor.js](http://www.meteor.com) way of using [jquery.dataTables](h
 
 ## Installation
 
-`meteor add ephemer:reactive-datatables`
+`meteor add nekoanz:reactive-datatables`
 
 ## Usage
 

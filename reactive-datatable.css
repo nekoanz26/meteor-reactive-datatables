@@ -9,6 +9,21 @@
 .dataTable th.sorting_desc:after{
     content: '\25bc';
 }
-.btn-add:after{
+.dataTable tbody tr.selected,
+.dataTable tbody tr.edit-row,
+.dataTable tbody tr.add-row
+{
+    background: #eee;
+}
+.dataTable tbody tr.editing {
+    display: none;
+}
+.datatable-controls .btn-add:after{
     content: '+';
+}
+.datatable-controls .btn-delete:after{
+    content: '-';
+}
+.datatable-controls .btn-save:after{
+    content: 'save';
 }

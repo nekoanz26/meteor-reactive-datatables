@@ -22,17 +22,88 @@ Template.ReactiveDatatable.rendered = function() {
         reactiveDataTable.page = info.page;
     });
 
+    $(table).on('click', 'tbody tr', function(e){
+        var $e = $(e.currentTarget);
+        if($e.hasClass('selected')){
+            $e.removeClass('selected');
+        }
+        else{
+            $(".dataTable tbody tr.selected").removeClass('selected');
+            $(e.currentTarget).addClass('selected');
+        }
+    });
+
+    $(table).on('dblclick', 'tbody tr', function(e){
+        reactiveDataTable.renderEditForm(e);
+    });
+
+    /*
+     * column control events
+     */
+
+    $(table).on('keyup', 'tbody tr.edit-row .column-control', function(e){
+        if(($(e.currentTarget).prop('tagName').toLowerCase() == 'input' && $(e.currentTarget).attr('type').toLowerCase() == 'text')
+          || $(e.currentTarget).prop('tagName').toLowerCase() == 'textarea'){
+            reactiveDataTable.updateRow(e);
+        }
+    });
+
+    $(table).on('change', 'tbody tr.edit-row .column-control', function(e){
+        if($(e.currentTarget).prop('tagName').toLowerCase() == 'select'){
+            reactiveDataTable.updateRow(e);
+        }
+    });
+
+    $(table).on('click', 'tbody tr.edit-row .column-control', function(e){
+        if($(e.currentTarget).prop('tagName').toLowerCase() == 'input' && $(e.currentTarget).attr('type').toLowerCase() == 'checkbox'){
+            reactiveDataTable.updateRow(e);
+        }
+    });
+
     // Create `Add` button
-//     var btn_add = document.createElement('button');
-//     btn_add.className = 'btn-add';
+    var btn_add = document.createElement('button');
+    btn_add.className = 'btn-add';
+    btn_add.addEventListener('click', function(e){
+        reactiveDataTable.renderAddForm();
+    });
+    this.$('.datatable-controls').append(btn_add);
 
-// //     btn_add.addEventListener('click', function(e){
-// //         reactiveDataTable.renderAddForm();
-// //     });
+    var btn_delete = document.createElement('button');
+    btn_delete.className = 'btn-delete';
+    btn_delete.addEventListener('click', function(e){
+        reactiveDataTable.triggerDelete(e);
+    });
+    this.$('.datatable-controls').append(btn_delete);
 
-//     this.$('.datatable-controls').append(btn_add);
+    var btn_save = document.createElement('button');
+    btn_save.className = 'btn-save';
+    btn_save.addEventListener('click', function(e) {
+        reactiveDataTable.triggerSave(e);
+    });
+    this.$('.datatable-controls').append(btn_save);
 
-//     dt.on('order.dt', function(e, settings) {
-
+//     var btn_refresh = document.createElement('button');
+//     btn_refresh.className = 'btn-refresh';
+//     btn_refresh.addEventListener('click', function(e) {
+//         reactiveDataTable.refresh(e);
 //     });
+
+    dt.on('order.dt', function(e, settings) {
+        // show hidden editing row
+        $(this).find('tbody tr.editing').removeClass('editing');
+    });
+
+    dt.on('search.dt', function(e, settings) {
+        // show hidden editing row
+        $(this).find('tbody tr.editing').removeClass('editing');
+    });
+
+    dt.on('page.dt', function(e, settings) {
+        // show hidden editing row
+        $(this).find('tbody tr.editing').removeClass('editing');
+    });
+
+    this.autorun(function() {
+        reactiveDataTable.update(data.tableData());
+    });
 };
