@@ -238,11 +238,6 @@ ReactiveDatatable.prototype.renderAddForm = function() {
     var table = dt.nTable;
 
     if(!$(table).find('tbody .add-row').length){
-        // Update mode
-        self.options.mode = 1;
-        // Disable sorting temporarily
-        // console.log(self.datatable.settings()[0]);
-
         var dt = self.datatable.context[0];
         var table = dt.nTable;
         var columns = dt.aoColumns;
@@ -270,7 +265,7 @@ ReactiveDatatable.prototype.renderValue = function (cellData, renderType, curren
 //                 console.log(typeof button.image);
 //             });
             $.each(column.buttons, function(ind, button){
-                _html.push('<a href="'+button.href+'">');
+                _html.push('<a href="'+(typeof button.href !== 'undefined' ? button.href : '')+'">');
                 if(typeof button.image !== 'undefined'){
                     _html.push('<img src="'+button.image+'" class="img-responsive alt="'+button.text+'" title="'+button.text+'">');
                 }

@@ -73,6 +73,13 @@ Template.ReactiveDatatable.rendered = function() {
 //             e.stopPropagation();
         }
     });
+    
+    $(table).on('keyup', 'tbody tr.edit-row .column-control', function(e){
+        if(e.keyCode == 27){ // esc is pressed
+            $(table).find('tbody tr.edit-row').remove();
+//             e.stopPropagation();
+        }
+    });
 
     // Create `Add` button
     var btn_add = document.createElement('button');
