@@ -51,7 +51,8 @@ ReactiveDatatable.prototype.update = function(data) {
     if(last_id != null){
         // re-render edit form
         var d = self.datatable.rows({page:'current'}).data()[last_index];
-        if(d._id == last_id){
+
+        if(/*d.length  && */d._id == last_id){
             var table = self.datatable.context[0].nTable;
             var dt = self.datatable.context[0];
             var columns = dt.aoColumns;
@@ -92,23 +93,6 @@ ReactiveDatatable.prototype.update = function(data) {
             });
 
             $(control).focus();
-//             // If this function exists...
-//             if (control.setSelectionRange)
-//             {
-//                 // ... then use it
-//                 // (Doesn't work in IE)
-
-//                 // Double the length because Opera is inconsistent about whether a carriage return is one character or two. Sigh.
-//                 var len = $(control).val().length * 2;
-//                 control.setSelectionRange(len, len);
-//             }
-//             else
-//             {
-//                 // ... otherwise replace the contents with itself
-//                 // (Doesn't work in Google Chrome)
-
-//                 $(control).val($(control).val());
-//             }
         }
     }
 
@@ -118,18 +102,21 @@ ReactiveDatatable.prototype.triggerSave = function (e) {
     var self = this;
     var dt = self.datatable.context[0];
     var table = dt.nTable;
-    var _form = $(table).find('tr.add-row').removeClass('editing');
-    if(_form.length){
+    var _form = $(table).find('tr.add-row');
+    if(_form.length && !$(table).find('tbody :focus').hasClass('column-control')){
         var columns = dt.aoColumns;
         var controls = $(_form).find('td');
         var valid = true;
         var values = {};
+        var field_index = -1;
         $.each(columns, function(ind, column){
             var c = $(controls[ind]);
             var val = c.find('.column-control').val();
             if(column.required){
                 if(!val){
                     valid = false;
+                    field_index = ind;
+                    return;
                 }
             }
 
@@ -146,20 +133,32 @@ ReactiveDatatable.prototype.triggerSave = function (e) {
             }
         });
         if(valid){
+            $(table).find('tr.add-row').remove();
             self.options.actions.insert(values);
         }
         else{
-            alert('Please fill-up all required fields!');
+            alert(columns[field_index].title + ' is required');
+            $($(table).find('.add-row .column-control:eq('+field_index+')')).focus();
         }
-        // do validation on required fields
     }
 };
 
 ReactiveDatatable.prototype.triggerDelete = function (e) {
     var self = this;
     var $tr = self.datatable.$("tbody tr.selected");
+    var edit_row = $(self.datatable.context[0].nTable).find("tbody tr.edit-row");
+
     if($tr.length){
         var index = $tr.index();
+        var data = self.datatable.rows({page:'current'}).data()[index];
+        var id = data._id;
+        if(typeof id === 'object'){
+            id = id._str;
+        }
+        self.options.actions.delete(id);
+    }
+    else if(edit_row.length){
+        var index  = $(edit_row).index() - 1;
         var data = self.datatable.rows({page:'current'}).data()[index];
         var id = data._id;
         if(typeof id === 'object'){
@@ -235,8 +234,10 @@ ReactiveDatatable.prototype.updateRow = function(e) {
 
 ReactiveDatatable.prototype.renderAddForm = function() {
     var self = this;
+    var dt = self.datatable.context[0];
+    var table = dt.nTable;
 
-    if(!self.datatable.$(".add-row").length){
+    if(!$(table).find('tbody .add-row').length){
         // Update mode
         self.options.mode = 1;
         // Disable sorting temporarily
@@ -272,6 +273,9 @@ ReactiveDatatable.prototype.renderValue = function (cellData, renderType, curren
                 _html.push('<a href="'+button.href+'">');
                 if(typeof button.image !== 'undefined'){
                     _html.push('<img src="'+button.image+'" class="img-responsive alt="'+button.text+'" title="'+button.text+'">');
+                }
+                else{
+                    _html.push(button.text);
                 }
                 _html.push('</a>');
             });

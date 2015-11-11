@@ -24,6 +24,7 @@ Template.ReactiveDatatable.rendered = function() {
 
     $(table).on('click', 'tbody tr', function(e){
         var $e = $(e.currentTarget);
+        if($e.hasClass('add-row') || $e.hasClass('edit-row')) return false;
         if($e.hasClass('selected')){
             $e.removeClass('selected');
         }
@@ -60,6 +61,19 @@ Template.ReactiveDatatable.rendered = function() {
         }
     });
 
+    $(table).on('blur', 'tbody tr.add-row .column-control', function(e){
+        setTimeout(function(){// need to delay to detect next control with focus
+            reactiveDataTable.triggerSave(e);
+        },300);
+    });
+
+    $(table).on('keyup', 'tbody tr.add-row .column-control', function(e){
+        if(e.keyCode == 27){ // esc is pressed
+            $(table).find('tbody tr.add-row').remove();
+//             e.stopPropagation();
+        }
+    });
+
     // Create `Add` button
     var btn_add = document.createElement('button');
     btn_add.className = 'btn-add';
@@ -74,13 +88,6 @@ Template.ReactiveDatatable.rendered = function() {
         reactiveDataTable.triggerDelete(e);
     });
     this.$('.datatable-controls').append(btn_delete);
-
-    var btn_save = document.createElement('button');
-    btn_save.className = 'btn-save';
-    btn_save.addEventListener('click', function(e) {
-        reactiveDataTable.triggerSave(e);
-    });
-    this.$('.datatable-controls').append(btn_save);
 
 //     var btn_refresh = document.createElement('button');
 //     btn_refresh.className = 'btn-refresh';
