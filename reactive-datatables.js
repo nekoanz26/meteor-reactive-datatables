@@ -362,6 +362,10 @@ ReactiveDatatable.prototype.renderValue = function (cellData, renderType, curren
             var _html = [];
             $.each(column.buttons, function(ind, button){
                 var _href = typeof button.href !== 'undefined' ? button.href : '';
+                $(columns).each(function(ind, col){
+                    _href = _href.replace( new RegExp('\{\{('+col.data+')\}\}','g'), encodeURI (currentRow[col.data]));
+                });
+
                 _html.push('<a href="'+ _href +'">');
                 if(typeof button.image !== 'undefined'){
                     _html.push('<img src="'+button.image+'" class="img-responsive alt="'+button.text+'" title="'+button.text+'">');
