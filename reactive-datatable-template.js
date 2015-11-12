@@ -24,17 +24,18 @@ Template.ReactiveDatatable.rendered = function() {
 
     $(table).on('click', 'tbody tr', function(e){
         var $e = $(e.currentTarget);
-        if($e.hasClass('add-row') || $e.hasClass('edit-row')) return false;
-        if($e.hasClass('selected')){
-            $e.removeClass('selected');
-        }
-        else{
-            $(".dataTable tbody tr.selected").removeClass('selected');
-            $(e.currentTarget).addClass('selected');
+        if(!($e.hasClass('add-row') || $e.hasClass('edit-row'))){
+            if($e.hasClass('selected')){
+                $e.removeClass('selected');
+            }
+            else{
+                $(".dataTable tbody tr.selected").removeClass('selected');
+                $(e.currentTarget).addClass('selected');
+            }
         }
     });
 
-    $(table).on('dblclick', 'tbody tr', function(e){
+    $(table).on('dblclick', 'tbody tr td', function(e){
         reactiveDataTable.renderEditForm(e);
     });
 
@@ -42,12 +43,12 @@ Template.ReactiveDatatable.rendered = function() {
      * column control events
      */
 
-    $(table).on('keyup', 'tbody tr.edit-row .column-control', function(e){
+    $(table).on('keyup', 'tbody tr.edit-row .column-control', _.throttle(function(e){
         if(($(e.currentTarget).prop('tagName').toLowerCase() == 'input' && $(e.currentTarget).attr('type').toLowerCase() == 'text')
           || $(e.currentTarget).prop('tagName').toLowerCase() == 'textarea'){
             reactiveDataTable.updateRow(e);
         }
-    });
+    }, 300));
 
     $(table).on('change', 'tbody tr.edit-row .column-control', function(e){
         if($(e.currentTarget).prop('tagName').toLowerCase() == 'select'){
@@ -73,9 +74,16 @@ Template.ReactiveDatatable.rendered = function() {
 //             e.stopPropagation();
         }
     });
-    
+
+    $(table).on('blur', 'tbody tr.edit-row .column-control', function(e){
+        setTimeout(function(){// need to delay to detect next control with focus
+            reactiveDataTable.removeEdit(e);
+        },300);
+    });
+
     $(table).on('keyup', 'tbody tr.edit-row .column-control', function(e){
         if(e.keyCode == 27){ // esc is pressed
+            $(table).find('tbody tr.editing').removeClass('editing');
             $(table).find('tbody tr.edit-row').remove();
 //             e.stopPropagation();
         }

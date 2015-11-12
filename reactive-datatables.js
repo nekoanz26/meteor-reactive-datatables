@@ -1,53 +1,117 @@
 ReactiveDatatable = function(options) {
-	var self = this;
+    var self = this;
 
-	this.options = options = _.defaults(options, {
-		// Any of these can be overriden by passing an options
-		// object into your ReactiveDatatable template (see readme)
-		stateSave: true,
-		stateDuration: -1, // Store data for session only
-		pageLength: 5,
-		lengthMenu: [3, 5, 10, 50, 100],
-		columnDefs: [{ // Global default blank value to avoid popup on missing data
-			targets: '_all',
-			defaultContent: '–––',
+    this.options = options = _.defaults(options, {
+        // Any of these can be overriden by passing an options
+        // object into your ReactiveDatatable template (see readme)
+        stateSave: true,
+        stateDuration: -1, // Store data for session only
+        bPaginate: false,
+        pageLength: 5,
+        lengthMenu: [],//[3, 5, 10, 50, 100],
+        columnDefs: [{ // Global default blank value to avoid popup on missing data
+            targets: '_all',
+            defaultContent: '–––',
             render: function(cellData, renderType, currentRow, meta) {
                 return self.renderValue(cellData, renderType, currentRow, meta);
             }
-		}],
-		stateLoadParams: function(settings, data) {
-			// Make it easy to change to the stored page on .update()
-			self.page = data.start / data.length;
-		},
-        mode: 0, // 0 - View  1 - Add  2 - Edit
-	});
+        }],
+        stateLoadParams: function(settings, data) {
+            // Make it easy to change to the stored page on .update()
+            self.page = data.start / data.length;
+        },
+        groupColumn: -1,
+        drawCallback: function ( settings ) {
+            var api = this.api();
+            var rows = api.rows( {page:'current'} ).nodes();
+            var last=null;
+            var columns = settings.aoColumns;
+            var groupIndex = 0;
+
+
+            // Get totals
+            var totals = [];
+
+            api.column(groupIndex, {page:'current'} ).data().each( function ( group, i ) {
+                if ( last !== group ) {
+                    if(typeof totals[group] === 'undefined'){
+                        totals[group] = [];
+                        for(i=0;i<columns.length;i++){
+                            totals[group][i] = 0;
+                        }
+                    }
+                    last = group;
+                }
+            } );
+
+            // Collect totals from the record
+            $(columns).each(function(ind, col){
+                if(typeof col.subtotal !== 'undefined' && col.subtotal){
+                    api.rows().data().each( function(row, i) {
+                        if(typeof totals[row[columns[groupIndex].data]] === 'undefined') totals[row[columns[groupIndex].data]] = [];
+                        totals[row[columns[groupIndex].data]][ind] = Number(totals[row[columns[groupIndex].data]][ind]) + Number(row[columns[ind].data]);
+                    });
+                }
+            });
+
+            var last=null;
+
+            api.column(groupIndex, {page:'current'} ).data().each( function ( group, i ) {
+                if ( last !== group ) {
+                    var _html = [];
+                    _html.push('<tr class="group">');
+                        $(columns).each(function(ind, col){
+                            _html.push('<td>');
+                            if(ind == groupIndex){
+                                _html.push(group);
+                            }
+                            else if(typeof col.subtotal !== 'undefined' && col.subtotal){
+                                _html.push(totals[group][ind]);
+                            }
+                            _html.push('</td>');
+                        });
+                    _html.push('</tr>');
+
+                    $(rows).eq(i).before(_html.join(''));
+//                     $(rows).eq( i ).before(
+//                         '<tr class="group"><td colspan="5">'+group+'</td></tr>'
+//                     );
+
+                    last = group;
+                }
+            } );
+        }
+    });
 };
 
 ReactiveDatatable.prototype.update = function(data) {
-	if (!data) return;
-	var self = this;
+    if (!data) return;
+    var self = this;
     var table = self.datatable.context[0].nTable;
     var edit_form = $(table).find('.edit-row');
     var last_index = -1;
     var last_id = null;
     var focus_index = 0;
     if(edit_form.length){
-        var focused = $(table).find('tbody tr.edit-row td .column-control:focus');
+        var focused = $(table).find('tbody tr.edit-row td .column-control:focus').not('.class');
         if(focused.length){
             var td = self.getParent(focused,'td');
             focus_index = td.index();
         }
         // get id of the currently editing row
-        last_index = edit_form.index() - 1;
+        var tr = self.getParent(td, 'tr');
+        var rows = tr.parent().find('tr:not(.group):not(.edit-row):not(.add-row)');
+        last_index = rows.index($(table).find(".editing"));
+//         last_index = edit_form.index() - 1;
         var d = self.datatable.rows({page:'current'}).data()[last_index];
         last_id = d._id;
     }
-	self.datatable
-		.clear()
-		.rows.add(data)
-		.draw(false)
-		.page(self.page || 0) // XXX: Can we avoid drawing twice?
-		.draw(false);		  // I couldn't get the page drawing to work otherwise
+    self.datatable
+        .clear()
+        .rows.add(data)
+        .draw(false)
+        .page(self.page || 0) // XXX: Can we avoid drawing twice?
+        .draw(false);		  // I couldn't get the page drawing to work otherwise
     if(last_id != null){
         // re-render edit form
         var d = self.datatable.rows({page:'current'}).data()[last_index];
@@ -56,10 +120,11 @@ ReactiveDatatable.prototype.update = function(data) {
             var table = self.datatable.context[0].nTable;
             var dt = self.datatable.context[0];
             var columns = dt.aoColumns;
+            var rows = $(table).find('tbody tr:not(.group):not(.edit-row):not(.add-row)');
 
             var values = [];
-            var tr = $(table).find('tbody tr:eq('+last_index+')');
-            var cols = tr.find("td");
+            var tr = rows[last_index];// $(table).find('tbody tr:eq('+last_index+')');
+            var cols = $(tr).find("td");
 
 
             $.each(cols, function(ind, col){
@@ -76,17 +141,11 @@ ReactiveDatatable.prototype.update = function(data) {
                    || ($(this).prop("tagName").toLowerCase() == 'input' && $(this).attr('type').toLowerCase() == 'text' )){
                     if (this.setSelectionRange)
                     {
-                        // ... then use it
-                        // (Doesn't work in IE)
-
-                        // Double the length because Opera is inconsistent about whether a carriage return is one character or two. Sigh.
                         var len = $(this).val().length * 2;
                         this.setSelectionRange(len, len);
                     }
                     else
                     {
-                        // ... otherwise replace the contents with itself
-                        // (Doesn't work in Google Chrome)
                         $(this).val($(this).val());
                     }
                 }
@@ -96,6 +155,17 @@ ReactiveDatatable.prototype.update = function(data) {
         }
     }
 
+};
+
+ReactiveDatatable.prototype.removeEdit = function (e) {
+    var self = this;
+    var dt = self.datatable.context[0];
+    var table = dt.nTable;
+    var _form = $(table).find('tr.edit-row');
+    if(_form.length && !$(table).find('tbody :focus').hasClass('column-control')){
+        $(table).find('tbody tr.editing').removeClass('editing');
+        $(table).find('tbody tr.edit-row').remove();
+    }
 };
 
 ReactiveDatatable.prototype.triggerSave = function (e) {
@@ -149,7 +219,12 @@ ReactiveDatatable.prototype.triggerDelete = function (e) {
     var edit_row = $(self.datatable.context[0].nTable).find("tbody tr.edit-row");
 
     if($tr.length){
-        var index = $tr.index();
+        var dt = self.datatable.context[0];
+        var table = dt.nTable;
+        var rows = $(table).find('tbody tr:not(.group):not(.edit-row):not(.add-row)');
+        var index = rows.index($(table).find($tr));
+
+//         var index = $tr.index();
         var data = self.datatable.rows({page:'current'}).data()[index];
         var id = data._id;
         if(typeof id === 'object'){
@@ -170,8 +245,9 @@ ReactiveDatatable.prototype.triggerDelete = function (e) {
 
 ReactiveDatatable.prototype.renderEditForm = function(e) {
     var self = this;
-    var tr = $(e.currentTarget);
-    if(!tr.hasClass('add-row') && !tr.hasClass('edit-row')){
+    var td = $(e.currentTarget);
+    var tr = self.getParent(td,'tr');
+    if(!tr.hasClass('add-row') && !tr.hasClass('edit-row') && !tr.hasClass('group')){
         var dt = self.datatable.context[0];
         var table = dt.nTable;
         $(table).find('tr.editing').removeClass('editing');
@@ -194,17 +270,40 @@ ReactiveDatatable.prototype.renderEditForm = function(e) {
 
         var _form = self.createForm(columns,1, values);
 
-        $(e.currentTarget).addClass('editing').after(_form);
+        $(tr).addClass('editing').after(_form);
+        var control = $(table).find('tbody tr.edit-row .column-control:eq('+td.index()+')');
+
+        $(control).focus(function(){
+            // If this function exists...
+            if($(this).prop("tagName").toLowerCase() == 'textarea'
+               || ($(this).prop("tagName").toLowerCase() == 'input' && $(this).attr('type').toLowerCase() == 'text' )){
+                if (this.setSelectionRange)
+                {
+                    var len = $(this).val().length * 2;
+                    this.setSelectionRange(len, len);
+                }
+                else
+                {
+                    $(this).val($(this).val());
+                }
+            }
+        });
+
+        $(control).focus();
     }
 };
 
 ReactiveDatatable.prototype.updateRow = function(e) {
     var self = this;
     var control = $(e.currentTarget);
+    var dt = self.datatable.context[0];
+    var table = dt.nTable;
     var tr = self.getParent(control, 'tr');
-    var ind = parseInt(tr.index()) - 1;
+    var rows = tr.parent().find('tr:not(.group):not(.edit-row):not(.add-row)');
+    var ind = rows.index($(table).find(".editing"));
     var data = self.datatable.rows({page:'current'}).data()[ind];
     var id = data._id;
+
     if(typeof id === 'object'){
         id = id._str;
     }
@@ -236,7 +335,7 @@ ReactiveDatatable.prototype.renderAddForm = function() {
     var self = this;
     var dt = self.datatable.context[0];
     var table = dt.nTable;
-
+    $(table).find('tbody tr.editing').removeClass('editing');
     if(!$(table).find('tbody .add-row').length){
         var dt = self.datatable.context[0];
         var table = dt.nTable;
@@ -261,11 +360,9 @@ ReactiveDatatable.prototype.renderValue = function (cellData, renderType, curren
             break;
         case 'actionbuttons':
             var _html = [];
-//             $.each(column.buttons, function(ind, button){
-//                 console.log(typeof button.image);
-//             });
             $.each(column.buttons, function(ind, button){
-                _html.push('<a href="'+(typeof button.href !== 'undefined' ? button.href : '')+'">');
+                var _href = typeof button.href !== 'undefined' ? button.href : '';
+                _html.push('<a href="'+ _href +'">');
                 if(typeof button.image !== 'undefined'){
                     _html.push('<img src="'+button.image+'" class="img-responsive alt="'+button.text+'" title="'+button.text+'">');
                 }
@@ -334,9 +431,9 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
                 _html.push('</select>');
                 break;
             case 'checkbox':
-//                 _html.push('<label class="checkbox-inline">');
-                    _html.push('<input type="checkbox" name="'+column.data+'" class="form-control column-control" value="1" '+(val ? 'checked' : '')+'>');
-//                 _html.push('</label>');
+                //                 _html.push('<label class="checkbox-inline">');
+                _html.push('<input type="checkbox" name="'+column.data+'" class="form-control column-control" value="1" '+(val ? 'checked' : '')+'>');
+                //                 _html.push('</label>');
                 break;
             default:
                 _html.push('<input type="text" name="'+column.data+'" value="'+val+'" class="form-control column-control" '+(column.required ? 'required' : '')+'>');

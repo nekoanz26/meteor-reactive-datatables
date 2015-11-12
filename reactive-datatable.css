@@ -9,6 +9,9 @@
 .dataTable th.sorting_desc:after{
     content: '\25bc';
 }
+.dataTable tbody tr.group {
+    background: #B8EBFF !important;
+}
 .dataTable tbody tr.selected,
 .dataTable tbody tr.edit-row,
 .dataTable tbody tr.add-row
