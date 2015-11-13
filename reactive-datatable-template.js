@@ -4,7 +4,6 @@ Template.ReactiveDatatable.rendered = function() {
     if (typeof data.tableData !== "function") {
         throw new Meteor.Error('Your tableData must be a function that returns an array via Cursor.fetch(), .map() or another (hopefully reactive) means')
     }
-
     var reactiveDataTable = new ReactiveDatatable(data.options);
 
     // Help Blaze cleanly remove entire datatable when changing template / route by
@@ -20,6 +19,10 @@ Template.ReactiveDatatable.rendered = function() {
     dt.on('page.dt', function(e, settings) {
         var info = dt.page.info();
         reactiveDataTable.page = info.page;
+    });
+    
+    dt.on('draw.dt', function(e, settings) {
+        reactiveDataTable.drawCallback(settings);
     });
 
     $(table).on('click', 'tbody tr', function(e){

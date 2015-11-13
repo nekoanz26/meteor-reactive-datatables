@@ -20,68 +20,128 @@ ReactiveDatatable = function(options) {
             // Make it easy to change to the stored page on .update()
             self.page = data.start / data.length;
         },
-        groupColumn: -1,
-        drawCallback: function ( settings ) {
-            var api = this.api();
-            var rows = api.rows( {page:'current'} ).nodes();
-            var last=null;
-            var columns = settings.aoColumns;
-            var groupIndex = 0;
+//         groupColumn: -1,
+//         drawCallback: this.drawCallback,
+    });
+};
 
+ReactiveDatatable.prototype.drawCallback = function ( settings ) {
+//     console.log(this.datatable);
+    var self = this;
+//     var api = this.datatable.api();
+    var dt = self.datatable;
+    var rows = dt.rows({page:'current'}).nodes();//api.rows( {page:'current'} ).nodes();
+    var last=null;
+    var columns = settings.aoColumns;
+    var groupIndex = self.options.groupColumn;
+    var groupColumns = self.options.groupColumns;
 
-            // Get totals
-            var totals = [];
+    if(!(typeof groupColumns !== 'undefined' && groupColumns.length)) return false;
+    //     if(typeof groupIndex === 'undefined') return;
 
-            api.column(groupIndex, {page:'current'} ).data().each( function ( group, i ) {
-                if ( last !== group ) {
-                    if(typeof totals[group] === 'undefined'){
-                        totals[group] = [];
-                        for(i=0;i<columns.length;i++){
-                            totals[group][i] = 0;
-                        }
-                    }
-                    last = group;
+    // Get totals
+    var totals = [];
+
+    dt.rows({page:'current'}).data().each(function (row, i){
+        var group = '';
+        $.each(groupColumns, function(ind, col) {
+            group += row[col];
+        });
+        if ( last !== group ) {
+            if(typeof totals[group] === 'undefined'){
+                totals[group] = [];
+                for(i=0;i<columns.length;i++){
+                    totals[group][i] = 0;
                 }
-            } );
-
-            // Collect totals from the record
-            $(columns).each(function(ind, col){
-                if(typeof col.subtotal !== 'undefined' && col.subtotal){
-                    api.rows().data().each( function(row, i) {
-                        if(typeof totals[row[columns[groupIndex].data]] === 'undefined') totals[row[columns[groupIndex].data]] = [];
-                        totals[row[columns[groupIndex].data]][ind] = Number(totals[row[columns[groupIndex].data]][ind]) + Number(row[columns[ind].data]);
-                    });
-                }
-            });
-
-            var last=null;
-
-            api.column(groupIndex, {page:'current'} ).data().each( function ( group, i ) {
-                if ( last !== group ) {
-                    var _html = [];
-                    _html.push('<tr class="group">');
-                        $(columns).each(function(ind, col){
-                            _html.push('<td>');
-                            if(ind == groupIndex){
-                                _html.push(group);
-                            }
-                            else if(typeof col.subtotal !== 'undefined' && col.subtotal){
-                                _html.push(totals[group][ind]);
-                            }
-                            _html.push('</td>');
-                        });
-                    _html.push('</tr>');
-
-                    $(rows).eq(i).before(_html.join(''));
-//                     $(rows).eq( i ).before(
-//                         '<tr class="group"><td colspan="5">'+group+'</td></tr>'
-//                     );
-
-                    last = group;
-                }
-            } );
+            }
+            last = group;
         }
     });
+
+
+//     dt.column(groupIndex, {page:'current'} ).data().each( function ( group, i ) {
+//         if ( last !== group ) {
+//             if(typeof totals[group] === 'undefined'){
+//                 totals[group] = [];
+//                 for(i=0;i<columns.length;i++){
+//                     totals[group][i] = 0;
+//                 }
+//             }
+//             last = group;
+//         }
+//     } );
+
+    // Collect totals from the record
+    $(columns).each(function(ind, col){
+        if(typeof col.subtotal !== 'undefined' && col.subtotal){
+            dt.rows().data().each( function(row, i) {
+                var group = '';
+                $.each(groupColumns, function(ind, c) {
+                    group += row[c];
+                });
+                if(typeof totals[group] === 'undefined') totals[group] = [];
+                totals[group][ind] = Number(totals[group][ind]) + Number(row[columns[ind].data]);
+            });
+        }
+    });
+
+
+
+    var last=null;
+
+    dt.rows({page:'current'}).data().each(function (row, i){
+        var group = '';
+        var group_label = [];
+        $.each(groupColumns, function(ind, c) {
+            group += row[c];
+            group_label.push(row[c]);
+        });
+        if ( last !== group ) {
+            var _html = [];
+            _html.push('<tr class="group">');
+            $(columns).each(function(ind, col){
+                _html.push('<td>');
+                if(ind == 0){
+                    _html.push(group_label.join(' - '));
+                }
+                else if(typeof col.subtotal !== 'undefined' && col.subtotal){
+                    _html.push(totals[group][ind]);
+                }
+                _html.push('</td>');
+            });
+            _html.push('</tr>');
+
+            $(rows).eq(i).before(_html.join(''));
+            last = group;
+        }
+    });
+
+    return;
+
+    dt.column(groupIndex, {page:'current'} ).data().each( function ( group, i ) {
+        if ( last !== group ) {
+            var _html = [];
+            _html.push('<tr class="group">');
+            $(columns).each(function(ind, col){
+                _html.push('<td>');
+                if(ind == groupIndex){
+                    _html.push(group);
+                }
+                else if(typeof col.subtotal !== 'undefined' && col.subtotal){
+                    _html.push(totals[group][ind]);
+                }
+                _html.push('</td>');
+            });
+            _html.push('</tr>');
+
+            $(rows).eq(i).before(_html.join(''));
+            //                     $(rows).eq( i ).before(
+            //                         '<tr class="group"><td colspan="5">'+group+'</td></tr>'
+            //                     );
+
+            last = group;
+        }
+    } );
 };
 
 ReactiveDatatable.prototype.update = function(data) {
@@ -110,8 +170,9 @@ ReactiveDatatable.prototype.update = function(data) {
         .clear()
         .rows.add(data)
         .draw(false)
-        .page(self.page || 0) // XXX: Can we avoid drawing twice?
-        .draw(false);		  // I couldn't get the page drawing to work otherwise
+//         .page(self.page || 0) // XXX: Can we avoid drawing twice?
+//         .draw(false)
+        ;		  // I couldn't get the page drawing to work otherwise
     if(last_id != null){
         // re-render edit form
         var d = self.datatable.rows({page:'current'}).data()[last_index];
@@ -362,13 +423,19 @@ ReactiveDatatable.prototype.renderValue = function (cellData, renderType, curren
             var _html = [];
             $.each(column.buttons, function(ind, button){
                 var _href = typeof button.href !== 'undefined' ? button.href : '';
-                $(columns).each(function(ind, col){
-                    _href = _href.replace( new RegExp('\{\{('+col.data+')\}\}','g'), encodeURI (currentRow[col.data]));
-                });
+                if(_href.length){
+                    $(columns).each(function(ind, col){
+                        _href = _href.replace( new RegExp('\{\{('+col.data+')\}\}','g'), encodeURI (currentRow[col.data]));
+                    });
+                }
 
                 _html.push('<a href="'+ _href +'">');
-                if(typeof button.image !== 'undefined'){
-                    _html.push('<img src="'+button.image+'" class="img-responsive alt="'+button.text+'" title="'+button.text+'">');
+                var _src = typeof button.image !== 'undefined' ? button.image : '';
+                if(_src.length){
+                    $(columns).each(function(ind, col){
+                        _src = _src.replace( new RegExp('\{\{('+col.data+')\}\}','g'), encodeURI (currentRow[col.data]));
+                    });
+                    _html.push('<img src="'+_src+'" class="img-responsive alt="'+button.text+'" title="'+button.text+'">');
                 }
                 else{
                     _html.push(button.text);
