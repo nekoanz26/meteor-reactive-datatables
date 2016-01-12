@@ -33,11 +33,9 @@ ReactiveDatatable.prototype.drawCallback = function ( settings ) {
     var rows = dt.rows({page:'current'}).nodes();//api.rows( {page:'current'} ).nodes();
     var last=null;
     var columns = settings.aoColumns;
-    var groupIndex = self.options.groupColumn;
     var groupColumns = self.options.groupColumns;
 
     if(!(typeof groupColumns !== 'undefined' && groupColumns.length)) return false;
-    //     if(typeof groupIndex === 'undefined') return;
 
     // Get totals
     var totals = [];
@@ -45,7 +43,7 @@ ReactiveDatatable.prototype.drawCallback = function ( settings ) {
     dt.rows({page:'current'}).data().each(function (row, i){
         var group = '';
         $.each(groupColumns, function(ind, col) {
-            group += row[col];
+            group += row[col.data];
         });
         if ( last !== group ) {
             if(typeof totals[group] === 'undefined'){
@@ -58,26 +56,13 @@ ReactiveDatatable.prototype.drawCallback = function ( settings ) {
         }
     });
 
-
-//     dt.column(groupIndex, {page:'current'} ).data().each( function ( group, i ) {
-//         if ( last !== group ) {
-//             if(typeof totals[group] === 'undefined'){
-//                 totals[group] = [];
-//                 for(i=0;i<columns.length;i++){
-//                     totals[group][i] = 0;
-//                 }
-//             }
-//             last = group;
-//         }
-//     } );
-
     // Collect totals from the record
     $(columns).each(function(ind, col){
         if(typeof col.subtotal !== 'undefined' && col.subtotal){
             dt.rows().data().each( function(row, i) {
                 var group = '';
                 $.each(groupColumns, function(ind, c) {
-                    group += row[c];
+                    group += row[c.data];
                 });
                 if(typeof totals[group] === 'undefined') totals[group] = [];
                 totals[group][ind] = Number(totals[group][ind]) + Number(row[columns[ind].data]);
@@ -93,8 +78,8 @@ ReactiveDatatable.prototype.drawCallback = function ( settings ) {
         var group = '';
         var group_label = [];
         $.each(groupColumns, function(ind, c) {
-            group += row[c];
-            group_label.push(row[c]);
+            group += row[c.data];
+            group_label.push(row[c.data]);
         });
         if ( last !== group ) {
             var _html = [];
@@ -115,33 +100,6 @@ ReactiveDatatable.prototype.drawCallback = function ( settings ) {
             last = group;
         }
     });
-
-    return;
-
-    dt.column(groupIndex, {page:'current'} ).data().each( function ( group, i ) {
-        if ( last !== group ) {
-            var _html = [];
-            _html.push('<tr class="group">');
-            $(columns).each(function(ind, col){
-                _html.push('<td>');
-                if(ind == groupIndex){
-                    _html.push(group);
-                }
-                else if(typeof col.subtotal !== 'undefined' && col.subtotal){
-                    _html.push(totals[group][ind]);
-                }
-                _html.push('</td>');
-            });
-            _html.push('</tr>');
-
-            $(rows).eq(i).before(_html.join(''));
-            //                     $(rows).eq( i ).before(
-            //                         '<tr class="group"><td colspan="5">'+group+'</td></tr>'
-            //                     );
-
-            last = group;
-        }
-    } );
 };
 
 ReactiveDatatable.prototype.update = function(data) {
@@ -406,6 +364,15 @@ ReactiveDatatable.prototype.renderAddForm = function() {
         var _form = self.createForm(columns);
 
         tbody.append(_form);
+        var modal_id = '#' + $(table).attr('id') + '-modal';
+        if($(modal_id).length){
+            console.log($(modal_id).find('form'));
+            $(modal_id).find('form').on('submit', function(e) {
+                e.preventDefault();
+                console.log('modal form save');
+            });
+            $(modal_id).modal('show');
+        }
     }
 };
 
@@ -470,8 +437,39 @@ ReactiveDatatable.prototype.getParent = function (elem, parentTag) {
 };
 
 ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
+    var self = this;
+    var dt = self.datatable.context[0];
+    var table = dt.nTable;
+    var groupColumns = self.options.groupColumns;
     var _html = [];
     _html.push('<tr class="'+(edit ? 'edit' : 'add')+'-row">');
+    if(groupColumns.length){
+        // Collect form fields
+        var form_fields = [];
+        var group_fields = [];
+        $.each(columns, function(ind, column){
+            form_fields.push(column.data);
+        });
+        $.each(groupColumns, function(ind, gcolumn){
+            if($.inArray(gcolumn.data, form_fields) == -1){
+                group_fields.push(gcolumn);
+            }
+        });
+    }
+
+    if(group_fields.length){
+        //add hidden field for saving
+        $.each(group_fields, function(ind, gfield){
+            _html.push('<td class="hidden">');
+                _html.push('<input type="hidden" name="'+gfield.data+'" class="column-control">');
+            _html.push('</td>');
+        });
+
+        // Create modal form for group fields
+        var _modal = self.createModalForm(group_fields);
+        $(table).after(_modal);
+    }
+
     $.each(columns, function(ind, column){
         var val = '';
         if(edit){
@@ -516,5 +514,58 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
         _html.push('</td>');
     });
     _html.push('</tr>');
+    return _html.join('');
+}
+
+ReactiveDatatable.prototype.createModalForm = function (columns) {
+    var self = this;
+    var dt = self.datatable.context[0];
+    var table = dt.nTable;
+    var _html = [];
+    _html.push('<div class="datatable-modal-form modal fade" role="dialog" id="'+($(table).attr('id') + '-modal')+'">');
+    _html.push('<div class="modal-dialog"  role="document">');
+    _html.push('<div class="modal-content">');
+    _html.push('<form class="form-horizontal" method="post">');
+    _html.push('<div class="modal-header">columns</div>');
+    _html.push('<div class="modal-body">');
+    $.each(columns, function(ind, column){
+        var val = '';
+        _html.push('<div class="form-group">');
+        switch(column.type){
+            case 'textarea':
+                _html.push('<textarea name="'+column.data+'" class="form-control required column-control" '+(column.required ? 'required' : '')+'>'+val+'</textarea>');
+                break;
+            case 'dropdown':
+                var start = typeof column.min !== 'undefined' ? column.min : 1;
+                var end = typeof column.max !== 'undefined' ? column.max : 10;
+                _html.push('<select name="'+column.data+'" class="form-control required column-control">');
+                for(i=start;i<=end;i++){
+                    _html.push('<option value="'+i+'" '+(val == i ? 'selected' : '')+'>'+i+'</option>');
+                }
+                _html.push('</select>');
+                break;
+            case 'checkbox':
+                //                 _html.push('<label class="checkbox-inline">');
+                _html.push('<input type="checkbox" name="'+column.data+'" class="form-control required column-control" value="1" '+(val ? 'checked' : '')+'>');
+                //                 _html.push('</label>');
+                break;
+            default:
+                _html.push('<input type="text" name="'+column.data+'" value="'+val+'" class="form-control required column-control" '+(column.required ? 'required' : '')+'>');
+                break;
+            case 'actionButtons':
+
+                break;
+        }
+        _html.push('</div>');
+    });
+    _html.push('</div>');
+    _html.push('<div class="modal-footer">');
+        _html.push('<button type="submit" class="btn btn-primary">Submit</button>');
+    _html.push('</div>');
+    _html.push('</form>');
+    _html.push('</div>');
+    _html.push('</div>');
+    _html.push('</div>');
+
     return _html.join('');
 }
