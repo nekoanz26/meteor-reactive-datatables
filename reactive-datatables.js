@@ -443,7 +443,7 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
     var groupColumns = self.options.groupColumns;
     var _html = [];
     _html.push('<tr class="'+(edit ? 'edit' : 'add')+'-row">');
-    if(groupColumns.length){
+    if(typeof groupColumns != 'undefined' && groupColumns.length){
         // Collect form fields
         var form_fields = [];
         var group_fields = [];
@@ -457,7 +457,7 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
         });
     }
 
-    if(group_fields.length){
+    if(typeof group_fields != 'undefined' && group_fields.length){
         //add hidden field for saving
         $.each(group_fields, function(ind, gfield){
             _html.push('<td class="hidden">');
@@ -491,13 +491,26 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
                 _html.push('<textarea name="'+column.data+'" class="form-control column-control" '+(column.required ? 'required' : '')+'>'+val+'</textarea>');
                 break;
             case 'dropdown':
-                var start = typeof column.min !== 'undefined' ? column.min : 1;
-                var end = typeof column.max !== 'undefined' ? column.max : 10;
-                _html.push('<select name="'+column.data+'" class="form-control column-control">');
-                for(i=start;i<=end;i++){
-                    _html.push('<option value="'+i+'" '+(val == i ? 'selected' : '')+'>'+i+'</option>');
+                if (typeof column.options != 'undefined') {
+                    var columnOptions = column.options();
+                    var optionValue = columnOptions.value;
+                    var optionLabel = columnOptions.label;
+                    _html.push('<select name="'+column.data+'" class="form-control column-control">');
+                    columnOptions.options.forEach(function(option, ind){
+                        _html.push('<option value="'+option[optionValue]+'">');
+                        _html.push(option[optionLabel]);
+                        _html.push('</option>');
+                    });
+                    _html.push('</select>');
+                } else {
+                    var start = typeof column.min !== 'undefined' ? column.min : 1;
+                    var end = typeof column.max !== 'undefined' ? column.max : 10;
+                    _html.push('<select name="'+column.data+'" class="form-control column-control">');
+                    for(i=start;i<=end;i++){
+                        _html.push('<option value="'+i+'" '+(val == i ? 'selected' : '')+'>'+i+'</option>');
+                    }
+                    _html.push('</select>');
                 }
-                _html.push('</select>');
                 break;
             case 'checkbox':
                 //                 _html.push('<label class="checkbox-inline">');

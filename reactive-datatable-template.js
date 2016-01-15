@@ -1,6 +1,6 @@
 Template.ReactiveDatatable.rendered = function() {
     var data = this.data;
-    console.log(data.tableData);
+    
     if (typeof data.tableData !== "function") {
         throw new Meteor.Error('Your tableData must be a function that returns an array via Cursor.fetch(), .map() or another (hopefully reactive) means')
     }
@@ -20,7 +20,7 @@ Template.ReactiveDatatable.rendered = function() {
         var info = dt.page.info();
         reactiveDataTable.page = info.page;
     });
-    
+
     dt.on('draw.dt', function(e, settings) {
         reactiveDataTable.drawCallback(settings);
     });
