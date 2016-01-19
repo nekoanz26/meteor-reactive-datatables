@@ -1,6 +1,6 @@
 Template.ReactiveDatatable.rendered = function() {
     var data = this.data;
-    
+
     if (typeof data.tableData !== "function") {
         throw new Meteor.Error('Your tableData must be a function that returns an array via Cursor.fetch(), .map() or another (hopefully reactive) means')
     }
@@ -14,6 +14,16 @@ Template.ReactiveDatatable.rendered = function() {
     // Render the table element and turn it into a DataTable
     this.$('.datatable_wrapper').append(table);
     var dt = $(table).DataTable(data.options);
+
+    if(typeof data.tableCounter != 'undefined') {
+        // append value to options
+        dt['uniqueCounter'] = data.tableCounter;
+    }
+    if(typeof data.submitCounterData != 'undefined') {
+        // append value to options
+        dt['submitCounterData'] = data.submitCounterData;
+    }
+
     reactiveDataTable.datatable = dt;
 
     dt.on('page.dt', function(e, settings) {
@@ -129,6 +139,10 @@ Template.ReactiveDatatable.rendered = function() {
     });
 
     this.autorun(function() {
-        reactiveDataTable.update(data.tableData());
+        if(typeof data.submitCounterData != 'undefined' && typeof data.tableCounter != 'undefined') {
+            reactiveDataTable.update(data.tableData(data.tableCounter));
+        } else {
+            reactiveDataTable.update(data.tableData());
+        }
     });
 };

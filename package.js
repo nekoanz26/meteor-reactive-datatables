@@ -1,7 +1,7 @@
 Package.describe({
     name: 'nekoanz:reactive-datatables',
     summary: "Fast and reactive jQuery DataTables using standard Cursors / DataTables API. Supports Bootstrap 3.",
-    version: "1.1.11",
+    version: "1.1.15",
     git: "https://github.com/nekoanz26/meteor-reactive-datatables"
 });
 

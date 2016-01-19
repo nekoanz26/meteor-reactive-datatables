@@ -191,6 +191,7 @@ ReactiveDatatable.prototype.triggerSave = function (e) {
     var self = this;
     var dt = self.datatable.context[0];
     var table = dt.nTable;
+    var uniqueCounter = typeof self.datatable.uniqueCounter != 'undefined' ? self.datatable.uniqueCounter : null;
     var _form = $(table).find('tr.add-row');
     if(_form.length && !$(table).find('tbody :focus').hasClass('column-control')){
         var columns = dt.aoColumns;
@@ -198,6 +199,11 @@ ReactiveDatatable.prototype.triggerSave = function (e) {
         var valid = true;
         var values = {};
         var field_index = -1;
+
+        if (uniqueCounter != null) {
+            values['uniqueCounter'] = uniqueCounter;
+        }
+
         $.each(columns, function(ind, column){
             var c = $(controls[ind]);
             var val = c.find('.column-control').val();
@@ -211,7 +217,11 @@ ReactiveDatatable.prototype.triggerSave = function (e) {
 
             switch(column.type.toLowerCase()){
                 case 'dropdown':
-                    values[column.data] = parseInt(val);
+                    if (typeof column.options != 'undefined') {
+                        values[column.data] = val;
+                    } else {
+                        values[column.data] = parseInt(val);
+                    }
                     break;
                 case 'checkbox':
                     values[column.data] = c.find('.column-control').is(":checked") ? 1 : 0 ;
@@ -236,6 +246,7 @@ ReactiveDatatable.prototype.triggerDelete = function (e) {
     var self = this;
     var $tr = self.datatable.$("tbody tr.selected");
     var edit_row = $(self.datatable.context[0].nTable).find("tbody tr.edit-row");
+    var uniqueCounter = typeof self.datatable.uniqueCounter != 'undefined' ? self.datatable.uniqueCounter : null;
 
     if($tr.length){
         var dt = self.datatable.context[0];
@@ -249,7 +260,7 @@ ReactiveDatatable.prototype.triggerDelete = function (e) {
         if(typeof id === 'object'){
             id = id._str;
         }
-        self.options.actions.delete(id);
+        self.options.actions.delete(id, uniqueCounter);
     }
     else if(edit_row.length){
         var index  = $(edit_row).index() - 1;
@@ -258,7 +269,7 @@ ReactiveDatatable.prototype.triggerDelete = function (e) {
         if(typeof id === 'object'){
             id = id._str;
         }
-        self.options.actions.delete(id);
+        self.options.actions.delete(id, uniqueCounter);
     }
 };
 
@@ -330,13 +341,22 @@ ReactiveDatatable.prototype.updateRow = function(e) {
     var dt = self.datatable.context[0];
     var columns = dt.aoColumns;
     var cols = tr.find("td");
+    var uniqueCounter = typeof self.datatable.uniqueCounter != 'undefined' ? self.datatable.uniqueCounter : null;
+
+    if (uniqueCounter != null) {
+        values['uniqueCounter'] = uniqueCounter;
+    }
 
     $.each(columns, function(ind, column){
         var c = $(cols[ind]);
         var val = c.find('.column-control').val();
         switch(column.type.toLowerCase()){
             case 'dropdown':
-                values[column.data] = parseInt(val);
+                if (typeof column.options != 'undefined') {
+                    values[column.data] = val;
+                } else {
+                    values[column.data] = parseInt(val);
+                }
                 break;
             case 'checkbox':
                 values[column.data] = c.find('.column-control').is(":checked") ? 1 : 0 ;
@@ -347,7 +367,7 @@ ReactiveDatatable.prototype.updateRow = function(e) {
         }
     });
 
-    self.options.actions.update(id, values);
+    self.options.actions.update(id, values, ind);
 };
 
 ReactiveDatatable.prototype.renderAddForm = function() {
@@ -366,7 +386,6 @@ ReactiveDatatable.prototype.renderAddForm = function() {
         tbody.append(_form);
         var modal_id = '#' + $(table).attr('id') + '-modal';
         if($(modal_id).length){
-            console.log($(modal_id).find('form'));
             $(modal_id).find('form').on('submit', function(e) {
                 e.preventDefault();
                 console.log('modal form save');
@@ -382,7 +401,23 @@ ReactiveDatatable.prototype.renderValue = function (cellData, renderType, curren
     var table = dt.nTable;
     var columns = dt.aoColumns;
     var column = columns[meta.col];
+    var opts = {};
     switch(column.type.toLowerCase()){
+        case 'dropdown':
+            if (typeof column.options != 'undefined') {
+                if (typeof opts[column.data] == 'undefined') {
+                    opts[column.data] = [];
+                    var o = column.options();
+                    o.options.forEach(function(x, y) {
+                        opts[column.data][x[o.value]] = x[o.label];
+                    });
+                }
+
+                if (typeof opts[column.data][cellData] != 'undefined') {
+                    cellData = opts[column.data][cellData];
+                }
+            }
+            break;
         case 'checkbox':
             cellData = cellData ? 'Yes' : 'No';
             break;
@@ -467,7 +502,8 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
 
         // Create modal form for group fields
         var _modal = self.createModalForm(group_fields);
-        $(table).after(_modal);
+//         $(table).after(_modal);
+        $('body').after(_modal);
     }
 
     $.each(columns, function(ind, column){
@@ -475,7 +511,12 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
         if(edit){
             switch(column.type){
                 case 'dropdown':
-                    val = parseInt(values[ind]);
+                    if (typeof column.options != 'undefined') {
+                        val = values[ind];
+                    } else {
+                        val = parseInt(values[ind]);
+                    }
+
                     break;
                 case 'checkbox':
                     val = parseInt(values[ind]) || values[ind] == 'Yes' ? 1 : 0;
@@ -497,7 +538,7 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
                     var optionLabel = columnOptions.label;
                     _html.push('<select name="'+column.data+'" class="form-control column-control">');
                     columnOptions.options.forEach(function(option, ind){
-                        _html.push('<option value="'+option[optionValue]+'">');
+                        _html.push('<option value="'+option[optionValue]+'" '+(edit && val == option[optionLabel] ? 'selected' : '')+'>');
                         _html.push(option[optionLabel]);
                         _html.push('</option>');
                     });
@@ -516,6 +557,9 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
                 //                 _html.push('<label class="checkbox-inline">');
                 _html.push('<input type="checkbox" name="'+column.data+'" class="form-control column-control" value="1" '+(val ? 'checked' : '')+'>');
                 //                 _html.push('</label>');
+                break;
+            case 'hidden':
+
                 break;
             default:
                 _html.push('<input type="text" name="'+column.data+'" value="'+val+'" class="form-control column-control" '+(column.required ? 'required' : '')+'>');
