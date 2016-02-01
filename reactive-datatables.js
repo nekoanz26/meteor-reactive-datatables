@@ -11,7 +11,7 @@ ReactiveDatatable = function(options) {
         lengthMenu: [],//[3, 5, 10, 50, 100],
         columnDefs: [{ // Global default blank value to avoid popup on missing data
             targets: '_all',
-            defaultContent: '–––',
+            defaultContent: '',
             render: function(cellData, renderType, currentRow, meta) {
                 return self.renderValue(cellData, renderType, currentRow, meta);
             }
@@ -20,13 +20,36 @@ ReactiveDatatable = function(options) {
             // Make it easy to change to the stored page on .update()
             self.page = data.start / data.length;
         },
+        footerCallback: function ( row, data, start, end, display ) {
+            var api = this.api(), data;
+
+            // Remove the formatting to get integer data for summation
+            var intVal = function ( i ) {
+                return typeof i === 'string' ?
+                    i.replace(/[\$,]/g, '')*1 :
+                typeof i === 'number' ?
+                    i : 0;
+            };
+
+            // Total over all pages
+            var total = api
+                .column( 8 )
+                .data()
+                .reduce( function (a, b) {
+                return intVal(a) + intVal(b);
+            }, 0 );
+
+            // Update footer
+//             $( api.column( 8 ).footer() ).html(
+//                 total
+//             );
+        }
 //         groupColumn: -1,
 //         drawCallback: this.drawCallback,
     });
 };
 
 ReactiveDatatable.prototype.drawCallback = function ( settings ) {
-//     console.log(this.datatable);
     var self = this;
 //     var api = this.datatable.api();
     var dt = self.datatable;
@@ -110,6 +133,7 @@ ReactiveDatatable.prototype.update = function(data) {
     var last_index = -1;
     var last_id = null;
     var focus_index = 0;
+
     if(edit_form.length){
         var focused = $(table).find('tbody tr.edit-row td .column-control:focus').not('.class');
         if(focused.length){
@@ -122,7 +146,7 @@ ReactiveDatatable.prototype.update = function(data) {
         last_index = rows.index($(table).find(".editing"));
 //         last_index = edit_form.index() - 1;
         var d = self.datatable.rows({page:'current'}).data()[last_index];
-        last_id = d._id;
+        last_id = typeof d != 'undefined' ? d._id : null;
     }
     self.datatable
         .clear()
@@ -182,8 +206,9 @@ ReactiveDatatable.prototype.removeEdit = function (e) {
     var table = dt.nTable;
     var _form = $(table).find('tr.edit-row');
     if(_form.length && !$(table).find('tbody :focus').hasClass('column-control')){
-        $(table).find('tbody tr.editing').removeClass('editing');
-        $(table).find('tbody tr.edit-row').remove();
+        this.updateRow(e);
+//         $(table).find('tbody tr.editing').removeClass('editing');
+//         $(table).find('tbody tr.edit-row').remove();
     }
 };
 
@@ -332,12 +357,14 @@ ReactiveDatatable.prototype.updateRow = function(e) {
     var rows = tr.parent().find('tr:not(.group):not(.edit-row):not(.add-row)');
     var ind = rows.index($(table).find(".editing"));
     var data = self.datatable.rows({page:'current'}).data()[ind];
-    var id = data._id;
+    var id = typeof data != 'undefined' ? data._id : undefined;
 
     if(typeof id === 'object'){
         id = id._str;
     }
     var values = {};
+    var valid = true;
+    var field_index = -1;
     var dt = self.datatable.context[0];
     var columns = dt.aoColumns;
     var cols = tr.find("td");
@@ -350,6 +377,13 @@ ReactiveDatatable.prototype.updateRow = function(e) {
     $.each(columns, function(ind, column){
         var c = $(cols[ind]);
         var val = c.find('.column-control').val();
+        if(column.required){
+            if(!val){
+                valid = false;
+                field_index = ind;
+                return;
+            }
+        }
         switch(column.type.toLowerCase()){
             case 'dropdown':
                 if (typeof column.options != 'undefined') {
@@ -367,7 +401,14 @@ ReactiveDatatable.prototype.updateRow = function(e) {
         }
     });
 
-    self.options.actions.update(id, values, ind);
+    if(valid && ind >= 0){
+        console.log(ind);
+        self.options.actions.update(id, values, ind);
+    }
+    else{
+        alert(columns[field_index].title + ' is required');
+        $($(table).find('.edit-row .column-control:eq('+field_index+')')).focus();
+    }
 };
 
 ReactiveDatatable.prototype.renderAddForm = function() {
@@ -403,6 +444,9 @@ ReactiveDatatable.prototype.renderValue = function (cellData, renderType, curren
     var column = columns[meta.col];
     var opts = {};
     switch(column.type.toLowerCase()){
+        case 'formula':
+            cellData = eval(column.formula);
+        break;
         case 'dropdown':
             if (typeof column.options != 'undefined') {
                 if (typeof opts[column.data] == 'undefined') {
@@ -459,14 +503,13 @@ ReactiveDatatable.prototype.getParent = function (elem, parentTag) {
     $e = $(elem);
     $p = $e.parent();
 
-    if(typeof $p === 'undefined'){
+    if(typeof $p === 'undefined' || typeof $p.prop('tagName') === 'undefined'){
         return $e;
     }
 
-    if($p.prop('tagName').toLowerCase() == parentTag.toLowerCase()){
+    if ($p.prop('tagName').toLowerCase() == parentTag.toLowerCase()) {
         return $p;
-    }
-    else{
+    } else {
         return self.getParent($p, parentTag);
     }
 };
@@ -521,6 +564,9 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
                 case 'checkbox':
                     val = parseInt(values[ind]) || values[ind] == 'Yes' ? 1 : 0;
                     break;
+                case 'formula':
+
+                    break;
                 default:
                     val = values[ind];
                     break;
@@ -560,6 +606,9 @@ ReactiveDatatable.prototype.createForm = function (columns, edit, values) {
                 break;
             case 'hidden':
 
+                break;
+            case 'formula':
+                _html.push('&nbsp;');
                 break;
             default:
                 _html.push('<input type="text" name="'+column.data+'" value="'+val+'" class="form-control column-control" '+(column.required ? 'required' : '')+'>');

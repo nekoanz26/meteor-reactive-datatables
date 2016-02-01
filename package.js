@@ -7,7 +7,7 @@ Package.describe({
 
 Package.onUse(function(api) {
     api.versionsFrom('0.9.0');
-    api.use(['templating','bootstrap'], 'client');
+    api.use(['templating'], 'client');
     api.addFiles([
         'jquery.dataTables.js',
         'reactive-datatables.js',

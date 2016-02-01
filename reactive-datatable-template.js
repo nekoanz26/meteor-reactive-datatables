@@ -56,15 +56,16 @@ Template.ReactiveDatatable.rendered = function() {
      * column control events
      */
 
-    $(table).on('keyup', 'tbody tr.edit-row .column-control', _.throttle(function(e){
-        if(($(e.currentTarget).prop('tagName').toLowerCase() == 'input' && $(e.currentTarget).attr('type').toLowerCase() == 'text')
-          || $(e.currentTarget).prop('tagName').toLowerCase() == 'textarea'){
-            reactiveDataTable.updateRow(e);
-        }
-    }, 300));
+//     $(table).on('keyup', 'tbody tr.edit-row .column-control', _.throttle(function(e){
+//         if(($(e.currentTarget).prop('tagName').toLowerCase() == 'input' && $(e.currentTarget).attr('type').toLowerCase() == 'text')
+//           || $(e.currentTarget).prop('tagName').toLowerCase() == 'textarea'){
+//             reactiveDataTable.updateRow(e);
+//         }
+//     }, 300));
 
     $(table).on('change', 'tbody tr.edit-row .column-control', function(e){
         if($(e.currentTarget).prop('tagName').toLowerCase() == 'select'){
+            console.log(e);
             reactiveDataTable.updateRow(e);
         }
     });
@@ -75,6 +76,23 @@ Template.ReactiveDatatable.rendered = function() {
         }
     });
 
+    $(table).on('keyup', 'tbody tr.edit-row .column-control', function(e){
+        if(e.keyCode == 27){ // esc is pressed
+            $(table).find('tbody tr.editing').removeClass('editing');
+            $(table).find('tbody tr.edit-row').remove();
+//             e.stopPropagation();
+        }
+    });
+
+    $(table).on('blur', 'tbody tr.edit-row .column-control', function(e){
+        setTimeout(function(){// need to delay to detect next control with focus
+            console.log(e);
+            reactiveDataTable.updateRow(e);
+        },300);
+    });
+
+
+
     $(table).on('blur', 'tbody tr.add-row .column-control', function(e){
         setTimeout(function(){// need to delay to detect next control with focus
             reactiveDataTable.triggerSave(e);
@@ -84,20 +102,6 @@ Template.ReactiveDatatable.rendered = function() {
     $(table).on('keyup', 'tbody tr.add-row .column-control', function(e){
         if(e.keyCode == 27){ // esc is pressed
             $(table).find('tbody tr.add-row').remove();
-//             e.stopPropagation();
-        }
-    });
-
-    $(table).on('blur', 'tbody tr.edit-row .column-control', function(e){
-        setTimeout(function(){// need to delay to detect next control with focus
-            reactiveDataTable.removeEdit(e);
-        },300);
-    });
-
-    $(table).on('keyup', 'tbody tr.edit-row .column-control', function(e){
-        if(e.keyCode == 27){ // esc is pressed
-            $(table).find('tbody tr.editing').removeClass('editing');
-            $(table).find('tbody tr.edit-row').remove();
 //             e.stopPropagation();
         }
     });
